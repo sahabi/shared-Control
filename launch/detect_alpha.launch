@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<launch>
+<group ns="openbci">
+
+  <node name="publish_measurements" pkg="openbci" type="publish_measurements.py" output="screen">
+    <param name="port" value="/dev/ttyUSB0" />
+    <param name="baud" value="115200" />
+    <param name="filter_data" value="True" />
+    <param name="scaled_output" value="True" />
+    <param name="daisy_module" value="True" />
+    <param name="log" value="True" />
+    <param name="timeout" value="None" />
+  </node>
+
+  <node name="detect_alpha" pkg="openbci" type="detect_alpha.py" output="screen">
+  </node>
+
+</group>
+</launch>
