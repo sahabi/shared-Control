@@ -10,15 +10,27 @@ import rospy
 from std_msgs.msg import Bool
 from random import random, choice
 from bisect import bisect
-from denoise.denoise import denoise
+from denoise.denoise_a import denoise
 import pickle
 import timeit
 from gridsim.gridsim import Simulation
-from action_selection.action_selection import init_probs, pick_action, det_k, update_P, det_all_k, init_k, update_all_P, get_max, get_target, manhattan_dist
+from action_selection.action_selection_a import init_probs, pick_action, det_k, update_P, det_all_k, init_k, update_all_P, get_max, get_target, manhattan_dist
 import operator
+import sys,tty,termios
 
 alpha_signal = []
 result = 0
+
+class _Getch:
+    def __call__(self):
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(sys.stdin.fileno())
+            ch = sys.stdin.read(3)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        return ch
 
 def weighted_choice(choices):
     values, weights = zip(*choices)
@@ -64,20 +76,41 @@ def get_action(actions_list):
 
 
 def get_response():
-    global subscribed, subscription, responded, result, steps, counter
-    subscription = rospy.Subscriber("/openbci/eyes_closed", Bool, callback)
-    subscribed = True
+    return 1
+    # global subscribed, subscription, responded, result, steps, counter
+    # subscription = rospy.Subscriber("/openbci/eyes_closed", Bool, callback)
+    # subscribed = True
     
-    start = timeit.default_timer()
-    while (not responded):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-        pass
-    stop = timeit.default_timer()
-    print stop - start 
-    responded = False
-    return result
+    # start = timeit.default_timer()
+    # while (not responded):
+    #     for event in pygame.event.get():
+    #         if event.type == pygame.QUIT:
+    #             pygame.quit()
+    #     pass
+    # stop = timeit.default_timer()
+    # print stop - start 
+    # responded = False
+    # return result
+
+def get_action_key():
+    inkey = _Getch()
+    while(1):
+        print "getting key"
+        k=inkey()
+        if k!='':break
+    if k=='\x1b[A':
+        print "up"
+    elif k=='\x1b[B':
+        print "down"
+    elif k=='\x1b[C':
+        return "east"
+    elif k=='\x1b[D':
+        return "west"
+    else:
+        print "not an arrow key!"
+
+def get_random_action():
+    return 'east'
 
 def start_simulation(x_size, y_size, steps, param, beta):
     "this function works"
@@ -116,7 +149,7 @@ def start_simulation(x_size, y_size, steps, param, beta):
     response_x_log = []
     response_y_log = []
     evaluation_list_log = []
-    target = (2, 2)
+    target = (8, 0)
     goal_value_log = []
     goal_value_log.append(p[target])
     
@@ -126,13 +159,16 @@ def start_simulation(x_size, y_size, steps, param, beta):
         counter = i+1
         x_entry = [0,0,0,0,0]
         y_entry = [0,0,0,0,0]
-        sleep(3.01)
+        #leep(3.01)
         blocks = sim.get_state()
          
         time_step_list.append(counter-1)
-        action  =  pick_action(current_state, actions, p, x_size, y_size, counter - 1)
-        if action == 'stay':
-            break
+        #action  =  pick_action(current_state, actions, p, x_size, y_size, counter - 1)
+        print "getting action"
+        action  =  get_action_key()
+        #action  =  get_random_action()
+        #if action == 'stay':
+        #    break
         #action = get_action([('north',15),('east',35),('south',35),('west',15)])
         action_log.append(action)
 
@@ -190,7 +226,7 @@ def start_simulation(x_size, y_size, steps, param, beta):
         current_state_list.append(current_state)
         # x_state_log.append(x_state)
         # y_state_log.append(y_state)  
-        response = get_response()
+        response = x_entry[1]
         #response = choice([1])
         response_log.append(response)
 
@@ -260,7 +296,7 @@ def start_simulation(x_size, y_size, steps, param, beta):
                                         evaluation_list[element[1]] = 1   
         
         s = init_k(x_size, y_size)
-        all_K = det_all_k(s,current_state_list[:-1],action_log,evaluation_list)
+        all_K = det_all_k(s,current_state_list[:-1],action_log,x_denoise_log[-1][2][0])
         
         p = init_probs(x_size, y_size)
         p = update_all_P(p,all_K)
@@ -315,219 +351,7 @@ def start_simulation(x_size, y_size, steps, param, beta):
 
     return (x_state_logging, x_denoise_logging, y_state_logging, y_denoise_logging, response_log, action_log, x_state_logger[:-1],y_state_logger[:-1], time_step_list, evaluation_list_log ,goal_value_log[:-1],error_log)
 
-# def start_offline_simulation(current_state_list_offline,action_offline_list,prev_x_state_list_offline,prev_y_state_list_offline, response_list_offline, current_x_state_list_offline, current_y_state_list_offline, param, beta, x_size=10, y_size=10):
 
-#     #"this function works"
-
-#     global closed, counter
-#     #rospy.init_node('gridworld', anonymous=True)
-#     #start_2D_grid(initial_x_state, initial_y_state, num_x_states, num_y_states)
-#     #sim = Simulation('/home/sahabi/mo/lib/python/gridsim/config.txt','/home/sahabi/mo/lib/python/gridsim/matrix.txt')
-#     x_state_log = []
-#     y_state_log = []
-#     action_log = []
-#     action_x_log = []
-#     action_y_log = []
-#     response_log = []
-#     prev_x_state_log = []
-#     prev_y_state_log = []
-#     error_log = []
-#     error_x_log = []
-#     error_y_log = []
-#     x_denoise_log = []
-#     y_denoise_log = []
-#     x_entry_log = []
-#     y_entry_log = []
-#     current_state_list = []
-#     time_step_list = []
-#     evaluation_list = []
-#     #done = sim.update()
-#     p = init_probs(x_size, y_size)
-#     s = init_k(x_size, y_size)
-#     current_state = (0, 0)
-#     current_state_list.append(current_state)
-#     response_x_log = []
-#     response_y_log = []
-#     target = (4,5)
-#     actions = ['east','west','north','south']
-
-#     for offline in range(0, len(action_offline_list)):
-#         counter = offline+1
-#         x_entry = [0,0,0,0]
-#         y_entry = [0,0,0,0]
-#     #    sleep(4.5)
-#     #    blocks = sim.get_state()
-         
-#         time_step_list.append(counter-1)
-#         action  =  action_offline_list[offline]
-#         if action == 'stay':
-#             break
-#         #action = get_action([('north',15),('east',35),('south',35),('west',15)])
-#         action_log.append(action)
-
-#         if action == 'north':
-#             y_entry[1] = 0
-#             x_entry[1] = 0
-#         elif action == 'east':
-#             y_entry[1] = 0
-#             x_entry[1] = 1
-#         elif action == 'south':
-#             y_entry[1] = 1
-#             x_entry[1] = 0
-#         elif action == 'west':
-#             y_entry[1] = 0
-#             x_entry[1] = 0
-
-#         S_max = get_max(p)
-#         S_target = get_target(current_state,S_max)
-#         #print current_state
-#         #sleep(0.5)
-
-#         # for j in range(y_size):
-#         #     print '\n'
-#         #     print '\t',
-#         #     for i in range(x_size):
-#         #         print "%.3f" % p[(i,j)],
-#         #         print '\t',
-#         #     for i in range(x_size):
-#         #         if (i,j) == current_state:
-#         #             print " * ",
-#         #         elif (i,j) == S_target:
-#         #             print " X ",
-#         #         elif (i,j) in S_max:
-#         #             print " O ",
-#         #         else:
-#         #             print " _ ",
-           
-#         # print '\n'
-
-#     #    sim.move_agent(0, action)
-#         prev_x_state = prev_x_state_list_offline[offline]
-#         prev_y_state = prev_y_state_list_offline[offline]
-#         x_entry[0] = prev_x_state_list_offline[offline]
-#         y_entry[0] = prev_y_state_list_offline[offline]
-
-#         prev_x_state_log.append(prev_x_state)
-#         prev_y_state_log.append(prev_y_state)
-
-#         current_state = current_state_list_offline[offline]
-#         current_state_list.append(current_state)
-#         x_state = current_x_state_list_offline[offline]
-#         y_state = current_y_state_list_offline[offline]
-
-#         x_state_log.append(x_state)
-#         y_state_log.append(y_state)
-
-#         # print 'Step {} of {}'.format(counter,len(action_offline_list))
-
-#     #    response = get_response()
-#         response = response_list_offline[offline]
-#         if action == 'west' or action == 'east':
-#             x_state_log.append(x_state)
-#             prev_x_state_log.append(prev_x_state)
-#             response_x = response
-#             x_entry[0] = prev_x_state
-#             x_entry[2] = response_x
-#             x_entry[3] = prev_x_state
-#             response_x_log.append(response_x)
-#             evaluation_list.append(response_x)
-#             x_entry_log.append(x_entry)
-#             x_denoise_log.append(denoise(x_entry_log,param,beta,10))
-#         if action == 'south' or action == 'north':
-#             y_state_log.append(y_state) 
-#             prev_y_state_log.append(prev_y_state)
-#             response_y = response
-#             y_entry[0] = prev_y_state
-#             y_entry[2] = response_y
-#             y_entry[3] = prev_y_state
-#             response_y_log.append(response_y)
-#             evaluation_list.append(response_y)
-#             y_entry_log.append(y_entry)
-#             y_denoise_log.append(denoise(y_entry_log,param,beta,10))
-        
-        
-#         #evaluation_list = response_log[:]
-#         #corrected_evaluations = []
-#         #print 'original {}'.format(y_denoise_log[counter-1][3]) 
-#         #print 'origints {}'.format(y_denoise_log[counter-1][4])
-#         #print 'denoised {}'.format(y_denoise_log[counter-1][2])
-#         #print 'eval list pre: {}'.format(evaluation_list)
-#         #print y_denoise_log
-#         #print x_denoise_log
-
-#         for action in action_log:
-#             if action == 'east' or action == 'west':
-#                 for index,column in enumerate(x_denoise_log[-1][4]):
-#                     for x,element in enumerate(column):
-#                         if type(element) == list:
-#                             if element[0] != -1:
-#                                 if element[0] != x_denoise_log[-1][2][index][x] and (action_log[element[1]] == 'east' or action_log[element[1]] == 'west'):
-#                                     if evaluation_list[element[1]] == 1:
-#                                         evaluation_list[element[1]] = 0
-#                                     if evaluation_list[element[1]] == 0:
-#                                         evaluation_list[element[1]] = 1                
-
-#         for action in action_log:
-#             if action == 'south' or action == 'north':
-#                 for index,column in enumerate(y_denoise_log[-1][4]):
-#                     for x,element in enumerate(column):
-#                         if type(element) == list:
-#                             if element[0] != -1:
-#                                 if element[0] != y_denoise_log[-1][2][index][x] and (action_log[element[1]] == 'north' or action_log[element[1]] == 'south'):
-#                                     if evaluation_list[element[1]] == 1:
-#                                         evaluation_list[element[1]] = 0
-#                                     if evaluation_list[element[1]] == 0:
-#                                         evaluation_list[element[1]] = 1   
-        
-#         #print 'eval list post: {}'.format(evaluation_list)
-        
-#         #K = det_k(P,current_state,action,response)
-#         s = init_k(x_size, y_size)
-#         all_K = det_all_k(s,current_state_list[:-1],action_log,evaluation_list)
-        
-#         p = init_probs(x_size, y_size)
-#         p = update_all_P(p,all_K)
-
-#         #print p
-#         #P = update_P(P,K)
-#         #print manhattan_dist(current_state_list[-1],target)
-#         if action == 'south' or action == 'north':
-#             action_y_log.append(action)
-
-#             if manhattan_dist(current_state_list[-2],target) < manhattan_dist(current_state_list[-1],target) and response == 1:
-#                 error_y_log.append(True)
-#             elif manhattan_dist(current_state_list[-2],target) >= manhattan_dist(current_state_list[-1],target) and response == 0:            
-#                 error_y_log.append(True)
-#             else:
-#                 error_y_log.append(False)
-#         elif action == 'east' or action == 'west':
-#             action_x_log.append(action)
-#             if manhattan_dist(current_state_list[-2],target) < manhattan_dist(current_state_list[-1],target) and response == 1:
-#                 error_x_log.append(True)
-#             elif manhattan_dist(current_state_list[-2],target) >= manhattan_dist(current_state_list[-1],target) and response == 0:            
-#                 error_x_log.append(True)
-#             else:
-#                 error_x_log.append(False)
-
-#     x_state_logging = {'Previous_x_State': prev_x_state_log, 'Action': action_x_log, 
-#                 'New_x_State': x_state_log, 'User_Response': response_x_log, 'Error': error_x_log}
-
-#     y_state_logging = {'Previous_y_State': prev_y_state_log, 'Action': action_y_log, 
-#                 'New_y_State': y_state_log, 'User_Response': response_y_log, 'Error': error_y_log}
-
-#     x_denoise_logging = {'Maxflow': [i[0] for i in x_denoise_log],'Denoised_x_Image': [i[1] for i in x_denoise_log],
-#     'Final_Denoised_x_Image': [i[2] for i in x_denoise_log],'x_Image': [i[3] for i in x_denoise_log]}
-
-#     y_denoise_logging = {'Maxflow': [i[0] for i in y_denoise_log],'Denoised_y_Image': [i[1] for i in y_denoise_log],
-#     'Final_Denoised_y_Image': [i[2] for i in y_denoise_log],'y_Image': [i[3] for i in y_denoise_log]}
-
-#     x_merged_log = x_state_logging.copy()
-#     x_merged_log.update(x_denoise_logging)
-
-#     y_merged_log = y_state_logging.copy()
-#     y_merged_log.update(y_denoise_logging)
-
-#     return (x_state_logging, x_denoise_logging, y_state_logging, y_denoise_logging, response_log, evaluation_list)
 
 if __name__=="__main__":
 
@@ -596,12 +420,12 @@ if __name__=="__main__":
 
 
     #############
-    param = .25
-    beta = .6
+    param = .4
+    beta = .75
     exp = 6
 
     steps = int(sys.argv[1])
-    log = start_simulation(5, 5, steps, param, beta)
+    log = start_simulation(10, 1, steps, param, beta)
     #print log[0]
 
     log_x_state_df = pd.DataFrame()
