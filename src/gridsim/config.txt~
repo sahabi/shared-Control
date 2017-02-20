@@ -1,0 +1,8 @@
+HEIGHT: 8
+WIDTH: 10
+MARGIN: 2
+
+BLOCK: agent 0 0
+BLOCK: goal 0 7
+
+
