@@ -1,8 +1,8 @@
-HEIGHT: 10
-WIDTH: 10
+HEIGHT: 5
+WIDTH: 5
 MARGIN: 2
 
 BLOCK: agent 0 0
-BLOCK: fixed_obstacle 7 7
+BLOCK: fixed_obstacle 2 2
 
 

@@ -16,9 +16,9 @@ class Simulation:
     WIDTH = 0
     MARGIN = 2
     time_step = 0
-    screen = pygame.display.set_mode((0,0))
-    clock = pygame.time.Clock()
-    pygame.display.set_caption("Environment")
+    #screen = pygame.display.set_mode((0,0))
+    #clock = pygame.time.Clock()
+    #pygame.display.set_caption("Environment")
     
     def __init__(self, configFile, matrixFile):
         configFile = open(configFile, 'r')
@@ -50,7 +50,7 @@ class Simulation:
     
         self.WINDOW_SIZE[0] = int(30*self.WIDTH+2)
         self.WINDOW_SIZE[1] = int(30*self.HEIGHT+2)
-        self.screen = pygame.display.set_mode(self.WINDOW_SIZE)
+        #self.screen = pygame.display.set_mode(self.WINDOW_SIZE)
 
         for i in self.agent_blocks:
             self.log["agents"].append([])
@@ -59,7 +59,7 @@ class Simulation:
 
         self.import_matrix(matrixFile)
 
-        pygame.init()
+        #pygame.init()
 
     def clear(self):
         self.screen.fill([0,0,0])
@@ -90,7 +90,7 @@ class Simulation:
         for obstacle in self.moving_obstacles:
             obstacle.draw(self.screen, obstacle.column, obstacle.row, self.MARGIN)
         
-        pygame.display.flip()
+        #pygame.display.flip()
 
     def get_state(self):
 
@@ -156,9 +156,9 @@ class Simulation:
             index += 1
 
     def handle_events(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                return True
+#        for event in pygame.event.get():
+#            if event.type == pygame.QUIT:
+#                return True
 
         for agent in self.agent_blocks:
             for obstacle in self.moving_obstacles:
@@ -180,9 +180,9 @@ class Simulation:
 
     def update(self):
         self.move_obstacles()
-        self.draw()
+        #self.draw()
         self.time_step += 1
-        self.clock.tick(2)
+        #self.clock.tick(2)
         return self.handle_events()
 
 

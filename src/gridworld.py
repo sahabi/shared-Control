@@ -63,6 +63,12 @@ def get_action(actions_list):
     return action
 
 
+def get_autoresponse(old_x,old_y,new_x,new_y,target):
+    if manhattan_dist((old_x,old_y),target) <= manhattan_dist((new_x,new_y),target):
+        return weighted_choice([(0,70),(1,30)])
+    else:
+        return weighted_choice([(1,70),(0,30)])
+
 def get_response():
     global subscribed, subscription, responded, result, steps, counter
     subscription = rospy.Subscriber("/openbci/eyes_closed", Bool, callback)
@@ -79,13 +85,13 @@ def get_response():
     responded = False
     return result
 
-def start_simulation(x_size, y_size, steps, param, beta):
+def start_simulation(x_size, y_size, steps, param, beta, correction=True):
     "this function works"
 
-    global closed, counter
-    rospy.init_node('gridworld', anonymous=True)
+    global closed, counter, lock_80, lock_90, lock_95, table, lock_80n, lock_90n, lock_95n
+    #rospy.init_node('gridworld', anonymous=True)
     #start_2D_grid(initial_x_state, initial_y_state, num_x_states, num_y_states)
-    sim = Simulation('/home/sahabi/mo/lib/python/gridsim/config.txt','/home/sahabi/mo/lib/python/gridsim/matrix.txt')
+    sim = Simulation('gridsim/config.txt','gridsim/matrix.txt')
     x_state_log = []
     y_state_log = []
     action_log = []
@@ -105,8 +111,12 @@ def start_simulation(x_size, y_size, steps, param, beta):
     time_step_list = []
     evaluation_list = []
     done = sim.update()
+
+
     p = init_probs(x_size, y_size)
     s = init_k(x_size, y_size)
+    
+
     current_state = (0, 0)
     current_state_list.append(current_state)
     x_state_logger = []
@@ -126,7 +136,7 @@ def start_simulation(x_size, y_size, steps, param, beta):
         counter = i+1
         x_entry = [0,0,0,0,0]
         y_entry = [0,0,0,0,0]
-        sleep(3.01)
+        #sleep(3.01)
         blocks = sim.get_state()
          
         time_step_list.append(counter-1)
@@ -152,23 +162,23 @@ def start_simulation(x_size, y_size, steps, param, beta):
         S_max = get_max(p)
         S_target = get_target(current_state,S_max)
 
-        for j in range(y_size):
-            print '\n'
-            print '\t',
-            for i in range(x_size):
-                print "%.3f" % p[(i,j)],
-                print '\t',
-            for i in range(x_size):
-                if (i,j) == current_state:
-                    print " * ",
-                elif (i,j) == S_target:
-                    print " X ",
-                elif (i,j) in S_max:
-                    print " O ",
-                else:
-                    print " _ ",
+        # for j in range(y_size):
+        #     print '\n'
+        #     print '\t',
+        #     for i in range(x_size):
+        #         print "%.3f" % p[(i,j)],
+        #         print '\t',
+        #     for i in range(x_size):
+        #         if (i,j) == current_state:
+        #             print " * ",
+        #         elif (i,j) == S_target:
+        #             print " X ",
+        #         elif (i,j) in S_max:
+        #             print " O ",
+        #         else:
+        #             print " _ ",
            
-        print '\n'
+        # print '\n'
 
         
         prev_x_state = blocks["agents"][0][0]
@@ -190,7 +200,8 @@ def start_simulation(x_size, y_size, steps, param, beta):
         current_state_list.append(current_state)
         # x_state_log.append(x_state)
         # y_state_log.append(y_state)  
-        response = get_response()
+        # response = get_response()
+        response = get_autoresponse(prev_x_state, prev_y_state, x_state, y_state, target)
         #response = choice([1])
         response_log.append(response)
 
@@ -198,7 +209,9 @@ def start_simulation(x_size, y_size, steps, param, beta):
             pygame.quit()
             sys.exit()
 
-        print 'Step {} of {}'.format(counter,steps)
+        #print prev_x_state, prev_y_state, x_state, y_state, target, response
+
+        #print 'Step {} of {}'.format(counter,steps)
 
         if action == 'west' or action == 'east':
             x_state_log.append(x_state)
@@ -224,41 +237,40 @@ def start_simulation(x_size, y_size, steps, param, beta):
             evaluation_list.append(response_y)
             y_entry_log.append(y_entry)
             y_denoise_log.append(denoise(y_entry_log,param,beta))
-        
-        
-        #evaluation_list = response_log[:]
-        #corrected_evaluations = []
-        #print 'original {}'.format(y_denoise_log[counter-1][3]) 
-        #print 'origints {}'.format(y_denoise_log[counter-1][4])
-        #print 'denoised {}'.format(y_denoise_log[counter-1][2])
-        #print 'eval list pre: {}'.format(evaluation_list)
-        #print y_denoise_log
-        #print x_denoise_log
 
-        for action in action_log:
-
-            if action == 'east' or action == 'west':
-                for index,column in enumerate(x_denoise_log[-1][5]):
-                    for x,element in enumerate(column):
-                        if type(element) == list:
-                            if element[0] != -1:
-                                if element[0] != x_denoise_log[-1][2][index][x] and (action_log[element[1]] == 'east' or action_log[element[1]] == 'west'):
-                                    if evaluation_list[element[1]] == 1:
-                                        evaluation_list[element[1]] = 0
-                                    elif evaluation_list[element[1]] == 0:
-                                        evaluation_list[element[1]] = 1                
-
-            elif action == 'south' or action == 'north':
-                for index,column in enumerate(y_denoise_log[-1][5]):
-                    for x,element in enumerate(column):
-                        if type(element) == list:
-                            if element[0] != -1:
-                                if element[0] != y_denoise_log[-1][2][index][x] and (action_log[element[1]] == 'north' or action_log[element[1]] == 'south'):
-                                    if evaluation_list[element[1]] == 1:
-                                        evaluation_list[element[1]] = 0
-                                    elif evaluation_list[element[1]] == 0:
-                                        evaluation_list[element[1]] = 1   
+        old_ev_list = evaluation_list[:]
         
+        if correction:
+            for action in action_log:
+                if action == 'east' or action == 'west':
+                    for index,column in enumerate(x_denoise_log[-1][5]):
+                        for x,element in enumerate(column):
+                            if type(element) == list:
+                                if element[0] != -1:
+                                    if element[0] != x_denoise_log[-1][2][index][x] and (action_log[element[1]] == 'east' or action_log[element[1]] == 'west'):
+                                        if response_log[element[1]] == 1:
+                                            evaluation_list[element[1]] = 0
+                                        elif response_log[element[1]] == 0:
+                                            evaluation_list[element[1]] = 1
+                                    else:
+                                        evaluation_list[element[1]] =  response_log[element[1]]            
+
+                elif action == 'south' or action == 'north':
+                    for index,column in enumerate(y_denoise_log[-1][5]):
+                        for x,element in enumerate(column):
+                            if type(element) == list:
+                                if element[0] != -1:
+                                    if element[0] != y_denoise_log[-1][2][index][x] and (action_log[element[1]] == 'north' or action_log[element[1]] == 'south'):
+                                        if response_log[element[1]] == 1:
+                                            evaluation_list[element[1]] = 0
+                                        elif response_log[element[1]] == 0:
+                                            evaluation_list[element[1]] = 1
+                                    else:
+                                        evaluation_list[element[1]] =  response_log[element[1]]  
+
+ 
+        diff = sum(map(abs,map(operator.sub, old_ev_list, evaluation_list)))
+
         s = init_k(x_size, y_size)
         all_K = det_all_k(s,current_state_list[:-1],action_log,evaluation_list)
         
@@ -268,8 +280,6 @@ def start_simulation(x_size, y_size, steps, param, beta):
 
         if action == 'south' or action == 'north':
             action_y_log.append(action)
-
-
             if manhattan_dist(current_state_list[-2],target) <= manhattan_dist(current_state_list[-1],target) and response == 1:
                 error_y_log.append(1)
                 error_log.append(1)
@@ -291,6 +301,97 @@ def start_simulation(x_size, y_size, steps, param, beta):
             else:
                 error_x_log.append(0)
                 error_log.append(0)
+        error_prob =  sum(error_log)/float(len(error_log))
+
+        #print p[target]
+
+        if (p[(target[0],target[1]+1)] > .80 or p[(target[0],target[1]-1)] > .80 or p[(target[0]+1,target[1])] > .80 or p[(target[0]-1,target[1])] > .80) and not lock_80n:
+            lock_80n = True
+            table['ts_80n'].append((counter,trial))
+            table['er_80n'].append(error_prob)
+        elif (p[(target[0],target[1]+1)] > .90 or p[(target[0],target[1]-1)] > .90 or p[(target[0]+1,target[1])] > .90 or p[(target[0]-1,target[1])] > .90) and not lock_90n:
+            lock_90n = True
+            table['ts_90n'].append(counter)
+            table['er_90n'].append(error_prob)
+        elif (p[(target[0],target[1]+1)] > .95 or p[(target[0],target[1]-1)] > .95 or p[(target[0]+1,target[1])] > .95 or p[(target[0]-1,target[1])] > .95) and not lock_95n:
+            lock_95n = True
+            table['ts_95n'].append(counter)
+            table['er_95n'].append(error_prob)
+
+        if p[target] > .80 and not lock_80:
+            lock_80 = True
+            table['ts_80'].append(counter)
+            table['er_80'].append(error_prob)
+        elif p[target] > .90 and not lock_90:
+            lock_90 = True
+            table['ts_90'].append(counter)
+            table['er_90'].append(error_prob)
+        elif p[target] > .95 and not lock_95:
+            lock_95 = True
+            table['ts_95'].append(counter)
+            table['er_95'].append(error_prob)
+            table['er'].append(error_prob)
+            print '{}/{} \r'.format(trial, trials),
+            sys.stdout.flush()
+            lock_80 = False
+            lock_90 = False
+            lock_95 = False
+            if not lock_80n:
+                table['ts_80n'].append((None,trial))
+                table['er_80n'].append(None)
+            else:
+                lock_80n = False
+            if not lock_90n:
+                table['ts_90n'].append(None)
+                table['er_90n'].append(None)
+            else:
+                lock_90n = False        
+            if not lock_95n:
+                table['ts_95n'].append(None)
+                table['er_95n'].append(None)   
+            else:
+                lock_95n = False
+            evaluation_list_copy = evaluation_list[:]
+            evaluation_list_log.append(evaluation_list_copy)
+            break
+
+
+        if counter == steps:
+            table['er'].append(error_prob)
+            print '{}/{} \r'.format(trial, trials),
+            sys.stdout.flush()
+            #print("{}/{} \r".format(trial, trials), end="\r")
+            if not lock_80:
+                table['ts_80'].append(None)
+                table['er_80'].append(None)
+            else:
+                lock_80 = False
+            if not lock_90:
+                table['ts_90'].append(None)
+                table['er_90'].append(None)
+            else:
+                lock_90 = False        
+            if not lock_95:
+                table['ts_95'].append(None)
+                table['er_95'].append(None)   
+            else:
+                lock_95 = False
+            if not lock_80n:
+                table['ts_80n'].append((None,trial))
+                table['er_80n'].append(None)
+            else:
+                lock_80n = False
+            if not lock_90n:
+                table['ts_90n'].append(None)
+                table['er_90n'].append(None)
+            else:
+                lock_90n = False        
+            if not lock_95n:
+                table['ts_95n'].append(None)
+                table['er_95n'].append(None)   
+            else:
+                lock_95n = False
+
         evaluation_list_copy = evaluation_list[:]
         evaluation_list_log.append(evaluation_list_copy)
 
@@ -596,14 +697,30 @@ if __name__=="__main__":
 
 
     #############
-    param = .25
-    beta = .6
+    param = .3
+    beta = .8
     exp = 6
 
     steps = int(sys.argv[1])
-    log = start_simulation(5, 5, steps, param, beta)
+    trials = int(sys.argv[2])
+    name = sys.argv[3]
+    lock_80 = False
+    lock_90 = False
+    lock_95 = False
+    lock_80n = False
+    lock_90n = False
+    lock_95n = False
+    trial = 0
+    table = {'ts_80': [], 'ts_90': [], 'ts_95': [],'er_80': [], 'er_90': [], 'er_95': [],\
+    'ts_80n': [], 'ts_90n': [], 'ts_95n': [],'er_80n': [], 'er_90n': [], 'er_95n': [], 'er': []}
+    while trial != trials:
+        log = start_simulation(5, 5, steps, param, beta, correction=True)
+        trial += 1
     #print log[0]
-
+    print table
+    df = pd.DataFrame(data = table)
+    #print df
+    df.to_csv(sep = ',', path_or_buf='/home/sahabi/hasan/denoise/data/{}.csv'.format(name))
     log_x_state_df = pd.DataFrame()
     log_x_state_df = log_x_state_df.from_dict(log[0], orient='columns', dtype=None)
 
@@ -620,18 +737,6 @@ if __name__=="__main__":
     
     logging_exp_df = pd.DataFrame()
     logging_exp_df = logging_exp_df.from_dict(logging_exp, orient='columns', dtype=None)
-    #print logging_exp_df.Error.count()#float(logging_exp_df['Error'==1].count())#/(float(logging_exp_df['Error' == 1].count())+float(logging_exp_df['Error' == 0].count()))
-    #print logging_exp_df.Error.contains(1).sum()
-    #log_y_df = pd.DataFrame()
-    #log_y_df = log_y_df.from_dict(log[1], orient='columns', dtype=None)
-    # logging_exp_df.to_pickle('log_exp2_5x5.p')
-    
-
-    # log_x_state_df.to_pickle('log_x6_5x5_err_{}_beta_{}_state.p'.format(param,beta))
-    # log_x_denoise_df.to_pickle('log_x6_5x5_err_{}_beta_{}_denoise.p'.format(param,beta))
-
-    # log_y_state_df.to_pickle('log_y6_5x5_err_{}_beta_{}_state.p'.format(param,beta))
-    # log_y_denoise_df.to_pickle('log_y6_5x5_err_{}_beta_{}_denoise.p'.format(param,beta))
 
     log_x_state_df.to_csv('log_x{}_5x5_err_{}_beta_{}_state.csv'.format(exp,param,beta))
     log_x_denoise_df.to_csv('log_x{}_5x5_err_{}_beta_{}_denoise.csv'.format(exp,param,beta))
@@ -640,8 +745,3 @@ if __name__=="__main__":
     log_y_denoise_df.to_csv('log_y{}_5x5_err_{}_beta_{}_denoise.csv'.format(exp,param,beta))
 
     logging_exp_df.to_csv('log_exp{}_5x5.csv'.format(exp))
-###########
-    #log_y_df.to_pickle('log_y3_5x5_err_{}_beta_{}.p'.format(param,beta))
-
-    #print log[2]
-    #print log[3]

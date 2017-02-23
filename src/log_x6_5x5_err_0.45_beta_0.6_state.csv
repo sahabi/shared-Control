@@ -1,0 +1,6 @@
+,Action,Error,New_x_State,Previous_x_State,User_Response
+0,east,1,1,0,0
+1,west,0,0,1,0
+2,east,0,1,0,1
+3,east,1,2,1,0
+4,west,1,1,2,1

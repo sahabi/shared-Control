@@ -1,0 +1,12 @@
+,Action,Error,New_y_State,Previous_y_State,User_Response
+0,south,0,3,2,0
+1,north,0,2,3,1
+2,north,0,1,2,0
+3,north,0,0,1,0
+4,south,0,1,0,1
+5,south,0,2,1,1
+6,north,1,1,2,1
+7,south,0,2,1,1
+8,south,0,3,2,0
+9,north,1,2,3,0
+10,north,0,1,2,0
